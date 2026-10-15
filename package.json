@@ -1,0 +1,24 @@
+{
+  "name": "mini-pi",
+  "private": true,
+  "version": "0.0.1",
+  "description": "从零手写一个最小 agent harness，照着 earendil-works/pi 学",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/ai", "packages/agent", "packages/cli"],
+  "scripts": {
+    "step1": "tsx packages/cli/src/step01.ts",
+    "step2": "tsx packages/cli/src/step02.ts",
+    "chat": "tsx packages/cli/src/main.ts",
+    "test": "vitest run",
+    "verify": "vitest run --config vitest.steps.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

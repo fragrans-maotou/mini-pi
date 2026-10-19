@@ -7,7 +7,31 @@ async function main() {
   console.log(`→ 模型：${config.model}（流式）\n`);
   const started = Date.now();
   let firstTokenAt = 0;
-  for await (const ev of streamChatCompletion(config, [{ role: "user", content: question }])) {
+  for await (const ev of streamChatCompletion(config, [{ role: "user", content: question }], {
+    extraBody: {
+      tools: [
+        {
+          type: "function",
+          description: "获取天气信息",
+          name: "get_weather",
+          parameters: {
+            type: "object",
+            properties: {
+              city: {
+                type: "string",
+                description: "城市名",
+              }
+            },
+            required: ["city"],
+          },
+          execute({ city }: { city: string }) {
+            console.log(`[tool] 正在查询 ${city} 的天气，请稍等...`);
+            return { content: `当前天气：晴朗`, isError: false }
+          }
+        }
+      ]
+    }
+  })) {
     if (ev.type === "text_delta") {
       if (!firstTokenAt) firstTokenAt = Date.now();
       process.stdout.write(ev.delta);

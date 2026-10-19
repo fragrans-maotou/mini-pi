@@ -1,5 +1,6 @@
 // npm run step1 -- "你的问题"
-import { chatCompletion, ConfigError, getTextModelConfig, OpenAIChatMessage } from "@mini-pi/ai";
+import { chatCompletion, ConfigError, getTextModelConfig } from "@mini-pi/ai";
+import type { OpenAIChatMessage } from "@mini-pi/ai";
 
 async function main() {
   const config = getTextModelConfig();
@@ -20,16 +21,19 @@ async function chatMain() {
   const isLinkContext = process.argv.slice(2).join(" ") // true false
   const question = ["我叫猫头，记住了", "我叫什么？"]
 
-  let messages: OpenAIChatMessage[] = []
+  let messages: OpenAIChatMessage[] = [
+    { role: "system", content: "你是一个简洁友好的助手，用中文回答。" },
+  ]
 
   for (const q of question) {
 
-    if (!isLinkContext) {
-      messages = [
-        { role: "system", content: "你是一个简洁友好的助手，用中文回答。" },
-        { role: "user", content: q }
-      ]
+    if (!(isLinkContext === "true")) {
+      // 非记忆模式
+      messages = []
+      messages.push({ role: "user", content: q })
+
     } else {
+      // 记忆模式
       messages.push({ role: "user", content: q })
     }
 

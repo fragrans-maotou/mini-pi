@@ -69,6 +69,8 @@ export class SSEParser {
 export async function* readSSE(body: ReadableStream<Uint8Array>): AsyncGenerator<SSEEvent> {
   const decoder = new TextDecoder();
   const parser = new SSEParser();
+  console.log("body", body);
+
   for await (const bytes of body as unknown as AsyncIterable<Uint8Array>) {
     yield* parser.push(decoder.decode(bytes, { stream: true }));
   }

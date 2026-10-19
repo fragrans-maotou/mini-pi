@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readSSE } from "../src/sse.ts";
 describe("第 1 步：SSEUTF8", () => {
-  it("可以处理utf8", () => {
-    const text = "你好\n\n"
+  it("可以处理utf8", async () => {
+    const text = "data: 你好\n\n"
     const utf8 = new TextEncoder().encode(text);
     // 从“你”字的3个字节的中间切开，看sse是否能处理
     let firstUtf8Char = []
@@ -18,9 +18,6 @@ describe("第 1 步：SSEUTF8", () => {
     }
 
     // 喂给readSSE
-    console.log(new Uint8Array(firstUtf8Char))
-    console.log(new Uint8Array(secondUtf8Char))
-
     const reader = new ReadableStream({
       start(controller) {
         controller.enqueue(new Uint8Array(firstUtf8Char))
@@ -30,8 +27,8 @@ describe("第 1 步：SSEUTF8", () => {
     })
 
     console.log("reader", reader);
-
-    const a = readSSE(reader)
-    console.log("a", a);
+    let events = []
+    for await (const ev of readSSE(reader)) events.push(ev)
+    expect(events).toEqual([{ data: "你好", event: undefined }])
   })
 })

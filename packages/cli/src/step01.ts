@@ -27,14 +27,15 @@ async function chatMain() {
 
   for (const q of question) {
 
-    if (!(isLinkContext === "true")) {
-      // 非记忆模式
-      messages = []
-      messages.push({ role: "user", content: q })
-
+    if (isLinkContext !== "true") {
+      // 非记忆模式：每轮重新放 system 加当前问题
+      messages = [
+        { role: "system", content: "你是一个简洁友好的助手，用中文回答。" },
+        { role: "user", content: q },
+      ];
     } else {
       // 记忆模式
-      messages.push({ role: "user", content: q })
+      messages.push({ role: "user", content: q });
     }
 
     const result = await chatCompletion(config, messages);

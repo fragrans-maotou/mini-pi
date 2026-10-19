@@ -12,31 +12,38 @@ async function main() {
       tools: [
         {
           type: "function",
-          description: "获取天气信息",
-          name: "get_weather",
-          parameters: {
-            type: "object",
-            properties: {
-              city: {
-                type: "string",
-                description: "城市名",
-              }
+          function: {
+            name: "get_weather",
+            description: "获取天气信息",
+            parameters: {
+              type: "object",
+              properties: {
+                city: {
+                  type: "string",
+                  description: "城市名",
+                },
+              },
+              required: ["city"],
             },
-            required: ["city"],
           },
-          execute({ city }: { city: string }) {
-            console.log(`[tool] 正在查询 ${city} 的天气，请稍等...`);
-            return { content: `当前天气：晴朗`, isError: false }
-          }
-        }
-      ]
-    }
+        },
+      ],
+    },
   })) {
     if (ev.type === "text_delta") {
       if (!firstTokenAt) firstTokenAt = Date.now();
       process.stdout.write(ev.delta);
+    } else if (ev.type === "tool_call_delta") {
+      if (!firstTokenAt) firstTokenAt = Date.now();
+      if (ev.name) {
+        process.stdout.write(`\n[call: ${ev.name}] `);
+      }
+      process.stdout.write(ev.argumentsDelta);
     } else if (ev.type === "done") {
-      console.log(`\n\n(首字延迟 ${firstTokenAt - started}ms，总耗时 ${Date.now() - started}ms，finish_reason=${ev.finishReason})`);
+      console.log(`\n\n(首字延迟 ${firstTokenAt ? firstTokenAt - started : 0}ms，总耗时 ${Date.now() - started}ms，finish_reason=${ev.finishReason})`);
+      if (ev.toolCalls.length > 0) {
+        console.log("工具调用:", JSON.stringify(ev.toolCalls, null, 2));
+      }
     }
   }
 }

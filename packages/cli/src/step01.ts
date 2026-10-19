@@ -1,8 +1,9 @@
 // npm run step1 -- "你的问题"
-import { chatCompletion, ConfigError, getTextModelConfig } from "@mini-pi/ai";
+import { chatCompletion, ConfigError, getTextModelConfig, OpenAIChatMessage } from "@mini-pi/ai";
 
 async function main() {
   const config = getTextModelConfig();
+  console.log("process.argv", process.argv);
   const question = process.argv.slice(2).join(" ") || "用一句话介绍一下你自己";
   console.log(`→ 模型：${config.model} @ ${config.baseUrl}`);
   console.log(`→ 问题：${question}\n`);
@@ -14,7 +15,38 @@ async function main() {
   console.log(`\n(finish_reason=${result.finishReason}, tokens=${result.usage?.total_tokens ?? "?"})`);
 }
 
-main().catch((err) => {
+async function chatMain() {
+  const config = getTextModelConfig();
+  const isLinkContext = process.argv.slice(2).join(" ") // true false
+  const question = ["我叫猫头，记住了", "我叫什么？"]
+
+  let messages: OpenAIChatMessage[] = []
+
+  for (const q of question) {
+
+    if (!isLinkContext) {
+      messages = [
+        { role: "system", content: "你是一个简洁友好的助手，用中文回答。" },
+        { role: "user", content: q }
+      ]
+    } else {
+      messages.push({ role: "user", content: q })
+    }
+
+    const result = await chatCompletion(config, messages);
+    messages.push({ role: 'assistant', content: result.text })
+    console.log(result.text);
+  }
+
+
+}
+
+
+
+chatMain().catch((err) => {
   console.error(err instanceof ConfigError ? `⚠️  ${err.message}` : `❌ 出错了：${err.message}`);
   process.exit(1);
 });
+
+
+

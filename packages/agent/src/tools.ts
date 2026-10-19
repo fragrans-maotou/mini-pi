@@ -5,7 +5,12 @@ import type { AgentTool } from "./types.ts";
 
 /** TODO(step05): 把 AgentTool[] 变成只含描述的 Tool[]（去掉 execute），给模型看 */
 export function toToolDefinitions(tools: AgentTool<any>[]): Tool[] {
-  throw new Error("TODO(step05): 实现 toToolDefinitions");
+  // 遍历 AgentTool 数组，获取信息
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  }));
 }
 
 /**

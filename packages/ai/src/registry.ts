@@ -5,22 +5,38 @@
 // registry 根据 model.api 找到对应 provider。新增厂商 = 注册一个新函数，别的不动。
 import type { AssistantMessage, Context, Model, StreamFunction, StreamOptions, AssistantMessageEvent } from "./types.ts";
 
+const providers = new Map<string, StreamFunction>();
+
 /** TODO(step04): 注册一个 provider（同名覆盖）。 */
 export function registerProvider(api: string, fn: StreamFunction): void {
-  throw new Error("TODO(step04): 实现 registerProvider");
+  providers.set(api, fn);
 }
 
 /** TODO(step04): 查找 provider，找不到返回 undefined。 */
 export function getProvider(api: string): StreamFunction | undefined {
-  throw new Error("TODO(step04): 实现 getProvider");
+  return providers.get(api);
 }
 
 /** TODO(step04): 统一入口：按 model.api 找 provider 并转发；找不到时抛出中文错误。 */
 export function stream(model: Model, context: Context, options?: StreamOptions): AsyncIterable<AssistantMessageEvent> {
-  throw new Error("TODO(step04): 实现 stream");
+  const provider = getProvider(model.api);
+  if (!provider) {
+    throw new Error(`Provider for API "${model.api}" not found`);
+  }
+  return provider(model, context, options);
 }
 
 /** TODO(step04): 非流式便利函数：消费 stream()，返回 done/error 事件里的那条 AssistantMessage。 */
 export async function complete(model: Model, context: Context, options?: StreamOptions): Promise<AssistantMessage> {
-  throw new Error("TODO(step04): 实现 complete");
+
+  let result: AssistantMessage | undefined = undefined;
+
+  for await (const event of stream(model, context, options)) {
+    if (event.type === "done" || event.type === "error") {
+      result = event.message;
+      break;
+    }
+  }
+  if (!result) throw new Error("Stream closed without done/error event");
+  return result;
 }

@@ -4,7 +4,7 @@ import type { OpenAIChatMessage, OpenAIToolCall } from "./chat.ts";
 import type { AssistantMessage, Context, StopReason, TextContent, Tool, ToolCall } from "./types.ts";
 
 /**
- * TODO(step03): 把统一的 Context 翻译成 OpenAI 的 messages 数组。
+ * TODO(step03): 把统一的 Context 翻译成 OpenAI 协议 的 messages 数组。
  *  - systemPrompt → 开头一条 { role: "system" }
  *  - UserMessage → { role: "user", content }（content 是数组时把 text 拼起来）
  *  - AssistantMessage → { role: "assistant", content: 文本, tool_calls: [...] }

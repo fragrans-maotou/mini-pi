@@ -10,6 +10,7 @@ export type ChatStreamEvent =
   | { type: "tool_call_delta"; index: number; id?: string; name?: string; argumentsDelta: string }
   | { type: "done"; text: string; toolCalls: OpenAIToolCall[]; finishReason: string | null };
 
+
 export async function* streamChatCompletion(
   config: TextModelConfig,
   messages: OpenAIChatMessage[],

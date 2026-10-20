@@ -52,7 +52,6 @@ export class SSEParser {
       const ev: SSEEvent = { data: this.dataLines.join("\n"), event: this.eventName };
       this.dataLines = [];
       this.eventName = undefined;
-      console.log("ev", ev.data);
       return ev;
     }
     if (line.startsWith(":")) return undefined; // 注释 / 心跳
@@ -71,9 +70,19 @@ export async function* readSSE(body: ReadableStream<Uint8Array>): AsyncGenerator
   const decoder = new TextDecoder();
   const parser = new SSEParser();
 
-  for await (const bytes of body as unknown as AsyncIterable<Uint8Array>) {
-    yield* parser.push(decoder.decode(bytes, { stream: true }));
+  // 内部辅助生成器：负责统一打印 DEBUG 日志并 yield 出去
+  function* emit(events: SSEEvent[]) {
+    for (const ev of events) {
+      if (process.env.DEBUG) {
+        console.log(`[readSSE] data: ${ev.data}`);
+      }
+      yield ev;
+    }
   }
-  yield* parser.push(decoder.decode());
-  yield* parser.flush();
+
+  for await (const bytes of body as unknown as AsyncIterable<Uint8Array>) {
+    yield* emit(parser.push(decoder.decode(bytes, { stream: true })));
+  }
+  yield* emit(parser.push(decoder.decode()));
+  yield* emit(parser.flush());
 }

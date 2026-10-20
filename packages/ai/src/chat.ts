@@ -57,7 +57,9 @@ export async function postJson(
   body: unknown,
   signal?: AbortSignal,
 ): Promise<Response> {
-  process.env.DEBUG
+  if (process.env.DEBUG) {
+    console.log(`[postJson] data: ${JSON.stringify(body, null, 2)}`);
+  }
   let res: Response;
   try {
     res = await fetch(config.baseUrl + path, {

@@ -58,7 +58,7 @@ export async function postJson(
   signal?: AbortSignal,
 ): Promise<Response> {
   if (process.env.DEBUG) {
-    console.log(`[postJson] data: ${JSON.stringify(body, null, 2)}`);
+    console.error(`[postJson] data: ${JSON.stringify(body, null, 2)}`);
   }
   let res: Response;
   try {

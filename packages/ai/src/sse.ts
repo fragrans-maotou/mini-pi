@@ -74,7 +74,7 @@ export async function* readSSE(body: ReadableStream<Uint8Array>): AsyncGenerator
   function* emit(events: SSEEvent[]) {
     for (const ev of events) {
       if (process.env.DEBUG) {
-        console.log(`[readSSE] data: ${ev.data}`);
+        console.error(`[readSSE] data: ${ev.data}`);
       }
       yield ev;
     }

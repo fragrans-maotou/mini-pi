@@ -1,7 +1,7 @@
 // 第 3 步（TODO）：统一格式 <-> OpenAI 线上格式 的翻译。
 // 对应 pi：packages/ai/src/api/openai-completions.ts 里的 convertMessages()
 import type { OpenAIChatMessage, OpenAIToolCall } from "./chat.ts";
-import type { AssistantMessage, Context, StopReason, Tool } from "./types.ts";
+import type { AssistantMessage, Context, StopReason, TextContent, Tool, ToolCall } from "./types.ts";
 
 /**
  * TODO(step03): 把统一的 Context 翻译成 OpenAI 的 messages 数组。
@@ -12,7 +12,68 @@ import type { AssistantMessage, Context, StopReason, Tool } from "./types.ts";
  *  - ToolResultMessage → { role: "tool", tool_call_id, content }
  */
 export function toOpenAIMessages(context: Context): OpenAIChatMessage[] {
-  throw new Error("TODO(step03): 实现 toOpenAIMessages");
+  const messages: OpenAIChatMessage[] = [];
+
+  if (context.systemPrompt) {
+    messages.push({
+      role: "system",
+      content: context.systemPrompt,
+    });
+  }
+
+  for (const message of context.messages) {
+    switch (message.role) {
+      case "user": {
+        const content =
+          typeof message.content === "string"
+            ? message.content
+            : message.content.map((c) => c.text).join("");
+        messages.push({
+          role: "user",
+          content,
+        });
+        break;
+      }
+      case "assistant": {
+        const text = message.content
+          .filter((c): c is TextContent => c.type === "text")
+          .map((c) => c.text)
+          .join("");
+
+        const toolCalls: OpenAIToolCall[] = [];
+        for (const item of message.content) {
+          if (item.type === "toolCall") {
+            toolCalls.push({
+              id: item.id,
+              type: "function",
+              function: {
+                name: item.name,
+                arguments: JSON.stringify(item.arguments),
+              },
+            });
+          }
+        }
+
+        messages.push({
+          role: "assistant",
+          content: text || (toolCalls.length ? null : ""),
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+        });
+        break;
+      }
+      case "toolResult": {
+        const content = message.content.map((c) => c.text).join("");
+        messages.push({
+          role: "tool",
+          tool_call_id: message.toolCallId,
+          content,
+        });
+        break;
+      }
+    }
+  }
+
+  return messages;
 }
 
 /**
@@ -20,7 +81,14 @@ export function toOpenAIMessages(context: Context): OpenAIChatMessage[] {
  *   [{ type: "function", function: { name, description, parameters } }]
  */
 export function toOpenAITools(tools: Tool[]): unknown[] {
-  throw new Error("TODO(step03): 实现 toOpenAITools");
+  return tools.map((t) => ({
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    },
+  }));
 }
 
 /**
@@ -28,7 +96,16 @@ export function toOpenAITools(tools: Tool[]): unknown[] {
  *   "stop" → "stop"，"length" → "length"，"tool_calls" → "toolUse"，其它 → "stop"
  */
 export function mapStopReason(finishReason: string | null): StopReason {
-  throw new Error("TODO(step03): 实现 mapStopReason");
+  switch (finishReason) {
+    case "stop":
+      return "stop";
+    case "length":
+      return "length";
+    case "tool_calls":
+      return "toolUse";
+    default:
+      return "stop";
+  }
 }
 
 /**
@@ -43,5 +120,32 @@ export function toAssistantMessage(
   finishReason: string | null,
   model?: string,
 ): AssistantMessage {
-  throw new Error("TODO(step03): 实现 toAssistantMessage");
+  const content: (TextContent | ToolCall)[] = [];
+
+  if (text) {
+    content.push({ type: "text", text });
+  }
+
+  for (const tc of toolCalls) {
+    let args: Record<string, unknown> = {};
+    try {
+      args = JSON.parse(tc.function.arguments);
+    } catch {
+      args = {};
+    }
+    content.push({
+      type: "toolCall",
+      id: tc.id,
+      name: tc.function.name,
+      arguments: args,
+    });
+  }
+
+  return {
+    role: "assistant",
+    content,
+    stopReason: mapStopReason(finishReason),
+    model,
+    timestamp: Date.now(),
+  };
 }

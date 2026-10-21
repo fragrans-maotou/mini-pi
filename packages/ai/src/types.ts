@@ -56,7 +56,7 @@ export type Message = UserMessage | AssistantMessage | ToolResultMessage;
 /** 一个最简单的 JSON Schema 类型。pi 用 TypeBox，这里先手写 JSON Schema。 */
 export type JsonSchema = {
   type: "object";
-  properties: Record<string, { type: string; description?: string; [k: string]: unknown }>;
+  properties: Record<string, { type: string; description?: string;[k: string]: unknown }>;
   required?: string[];
 };
 
@@ -80,7 +80,7 @@ export interface Model {
   /** 协议名，例如 "openai-completions"、"fake"。registry 按它找 provider。 */
   api: string;
   baseUrl: string;
-  apiKey?: string;
+  apiKey?: string | undefined;
 }
 
 /** 流式事件（统一版）。第 4 步以后 agent 只认这个。 */

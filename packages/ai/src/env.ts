@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 export interface TextModelConfig {
   baseUrl: string;
-  apiKey: string;
+  apiKey: string | undefined;
   model: string;
 }
 
@@ -19,7 +19,7 @@ export function loadDotEnv(file = resolve(process.cwd(), ".env")): void {
   }
 }
 
-export class ConfigError extends Error {}
+export class ConfigError extends Error { }
 
 /** 读取文本模型配置；缺了就抛出一个看得懂的中文错误。 */
 export function getTextModelConfig(): TextModelConfig {
@@ -33,9 +33,9 @@ export function getTextModelConfig(): TextModelConfig {
   if (missing.length) {
     throw new ConfigError(
       `缺少配置：${missing.join("、")}\n` +
-        `请先复制一份配置文件：cp .env.example .env\n` +
-        `然后在 .env 里填上 OPENAI_BASE_URL / OPENAI_API_KEY / MODEL（任何 OpenAI 兼容接口都行）。\n` +
-        `本地服务不需要 key 的话，随便填一个非空字符串，比如 OPENAI_API_KEY=local`,
+      `请先复制一份配置文件：cp .env.example .env\n` +
+      `然后在 .env 里填上 OPENAI_BASE_URL / OPENAI_API_KEY / MODEL（任何 OpenAI 兼容接口都行）。\n` +
+      `本地服务不需要 key 的话，随便填一个非空字符串，比如 OPENAI_API_KEY=local`,
     );
   }
   return { baseUrl, apiKey, model };

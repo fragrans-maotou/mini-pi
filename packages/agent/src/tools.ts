@@ -13,27 +13,48 @@ export function toToolDefinitions(tools: AgentTool<any>[]): Tool[] {
   }));
 }
 
+function errorResult(toolCall: ToolCall, text: string): ToolResultMessage {
+  return {
+    role: "toolResult",
+    toolCallId: toolCall.id,
+    toolName: toolCall.name,
+    content: [{ type: "text", text }],
+    isError: true,
+    timestamp: Date.now(),
+  };
+}
+
 /**
  * TODO(step05): 极简参数校验：检查 schema.required 里的字段都在，类型（string/number/boolean）对得上。
  * 返回错误信息字符串；没问题返回 undefined。
  * （pi 用 TypeBox + 校验器做这件事，我们手写一个够用的）
  */
 export function validateArgs(tool: Tool, args: Record<string, unknown>): string | undefined {
-  const { required, properties } = tool.parameters;
-  if (!required) return undefined;
+  const properties = tool.parameters?.properties ?? {};
+  const required = tool.parameters?.required ?? [];
+
+  // 1. 检查必填参数是否存在
   for (const key of required) {
-    if (!(key in args)) {
+    if (!(key in args) || args[key] === undefined) {
       return `请求缺少必填参数: ${key}`;
     }
+  }
+
+  // 2. 检查传入参数的类型（只校验 string / number / boolean，跳过 integer、array、object 等）
+  const CHECKED_TYPES = new Set(["string", "number", "boolean"]);
+
+  for (const [key, val] of Object.entries(args)) {
+    if (val === undefined) continue;
     const prop = properties[key];
-    if (!prop) {
-      return `tool.parameters.properties中缺少必填参数: ${key}`;
-    }
-    const arg = args[key];
-    if (typeof arg !== prop.type) {
-      return `参数 ${key} 类型不匹配，期望 ${prop.type}，实际 ${typeof arg}`;
+    if (!prop) continue;
+
+    if (CHECKED_TYPES.has(prop.type)) {
+      if (typeof val !== prop.type) {
+        return `参数 ${key} 类型不匹配，期望 ${prop.type}，实际 ${typeof val}`;
+      }
     }
   }
+
   return undefined;
 }
 
@@ -50,51 +71,27 @@ export async function executeToolCall(
   signal?: AbortSignal,
 ): Promise<ToolResultMessage> {
   const tool = tools.find((t) => t.name === toolCall.name);
-  // 找不到工具
   if (!tool) {
-    return {
-      role: "toolResult",
-      timestamp: Date.now(),
-      toolCallId: toolCall.id,
-      toolName: toolCall.name,
-      isError: true,
-      content: [{ type: "text", text: `未知工具: ${toolCall.name}` }],
-    };
+    return errorResult(toolCall, `未知工具: ${toolCall.name}`);
   }
 
-  // 校验工具参数
   const errorMessage = validateArgs(tool, toolCall.arguments);
   if (errorMessage) {
-    return {
-      role: "toolResult",
-      timestamp: Date.now(),
-      toolCallId: toolCall.id,
-      toolName: toolCall.name,
-      isError: true,
-      content: [{ type: "text", text: errorMessage }],
-    };
+    return errorResult(toolCall, errorMessage);
   }
 
   try {
     const result = await tool.execute(toolCall.arguments, { toolCallId: toolCall.id, signal });
     return {
       role: "toolResult",
-      timestamp: Date.now(),
       toolCallId: toolCall.id,
       toolName: toolCall.name,
-      isError: result.isError ?? false,
       content: [{ type: "text", text: result.content || "" }],
+      isError: result.isError ?? false,
+      timestamp: Date.now(),
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      role: "toolResult",
-      timestamp: Date.now(),
-      toolCallId: toolCall.id,
-      toolName: toolCall.name,
-      isError: true,
-      content: [{ type: "text", text: errorMessage }],
-    };
+    const message = error instanceof Error ? error.message : String(error);
+    return errorResult(toolCall, message);
   }
-
 }

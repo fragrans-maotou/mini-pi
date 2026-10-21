@@ -7,17 +7,25 @@ const add: AgentTool<{ a: number; b: number }> = {
   parameters: { type: "object", properties: { a: { type: "number" }, b: { type: "number" } }, required: ["a", "b"] },
   async execute({ a, b }) { return { content: String(a + b) }; },
 };
-const boom: AgentTool = { name: "boom", description: "", parameters: { type: "object", properties: {} }, async execute() { throw new Error("炸了"); } };
+
+const boom: AgentTool = {
+  name: "boom",
+  description: "",
+  parameters: { type: "object", properties: {} },
+  async execute() { throw new Error("炸了"); }
+};
 
 describe("第 5 步：工具", () => {
   it("toToolDefinitions 去掉 execute", () => {
     expect(toToolDefinitions([add])[0]).not.toHaveProperty("execute");
   });
+
   it("validateArgs", () => {
     expect(validateArgs(add, { a: 1, b: 2 })).toBeUndefined();
     expect(validateArgs(add, { a: 1 })).toBeTypeOf("string");
     expect(validateArgs(add, { a: 1, b: "2" })).toBeTypeOf("string");
   });
+
   it("executeToolCall 从不抛异常", async () => {
     const ok = await executeToolCall([add, boom], { type: "toolCall", id: "1", name: "add", arguments: { a: 1, b: 2 } });
     expect(ok).toMatchObject({ role: "toolResult", toolCallId: "1", isError: false, content: [{ type: "text", text: "3" }] });

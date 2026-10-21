@@ -19,7 +19,22 @@ export function toToolDefinitions(tools: AgentTool<any>[]): Tool[] {
  * （pi 用 TypeBox + 校验器做这件事，我们手写一个够用的）
  */
 export function validateArgs(tool: Tool, args: Record<string, unknown>): string | undefined {
-  throw new Error("TODO(step05): 实现 validateArgs");
+  const { required, properties } = tool.parameters;
+  if (!required) return undefined;
+  for (const key of required) {
+    if (!(key in args)) {
+      return `请求缺少必填参数: ${key}`;
+    }
+    const prop = properties[key];
+    if (!prop) {
+      return `tool.parameters.properties中缺少必填参数: ${key}`;
+    }
+    const arg = args[key];
+    if (typeof arg !== prop.type) {
+      return `参数 ${key} 类型不匹配，期望 ${prop.type}，实际 ${typeof arg}`;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -34,5 +49,52 @@ export async function executeToolCall(
   toolCall: ToolCall,
   signal?: AbortSignal,
 ): Promise<ToolResultMessage> {
-  throw new Error("TODO(step05): 实现 executeToolCall");
+  const tool = tools.find((t) => t.name === toolCall.name);
+  // 找不到工具
+  if (!tool) {
+    return {
+      role: "toolResult",
+      timestamp: Date.now(),
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      isError: true,
+      content: [{ type: "text", text: `未知工具: ${toolCall.name}` }],
+    };
+  }
+
+  // 校验工具参数
+  const errorMessage = validateArgs(tool, toolCall.arguments);
+  if (errorMessage) {
+    return {
+      role: "toolResult",
+      timestamp: Date.now(),
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      isError: true,
+      content: [{ type: "text", text: errorMessage }],
+    };
+  }
+
+  try {
+    const result = await tool.execute(toolCall.arguments, { toolCallId: toolCall.id, signal });
+    return {
+      role: "toolResult",
+      timestamp: Date.now(),
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      isError: result.isError ?? false,
+      content: [{ type: "text", text: result.content || "" }],
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      role: "toolResult",
+      timestamp: Date.now(),
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      isError: true,
+      content: [{ type: "text", text: errorMessage }],
+    };
+  }
+
 }

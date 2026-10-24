@@ -1,5 +1,7 @@
 // 第 8 步（TODO）：write 工具。对应 pi：packages/coding-agent/src/core/tools/write.ts
-import type { AgentTool } from "@mini-pi/agent";
+import type { AgentTool, AgentToolResult } from "@mini-pi/agent";
+import path from "path";
+import fs from "fs/promises";
 
 /** TODO(step08): 写文件（自动创建父目录）。安全：path 解析后必须在 cwd 里面，否则返回错误。 */
 export function createWriteTool(cwd: string): AgentTool<{ path: string; content: string }> {
@@ -14,8 +16,20 @@ export function createWriteTool(cwd: string): AgentTool<{ path: string; content:
       },
       required: ["path", "content"],
     },
-    async execute(args) {
-      throw new Error("TODO(step08): 实现 write 工具");
+    async execute(args): Promise<AgentToolResult> {
+      const resolved = path.resolve(cwd, args.path);
+      const rootWithSep = cwd.endsWith(path.sep) ? cwd : cwd + path.sep;
+      if (resolved !== cwd && !resolved.startsWith(rootWithSep)) {
+        return { content: `错误：不允许写到工作目录外 (${args.path})`, isError: true };
+      }
+      try {
+        await fs.mkdir(path.dirname(resolved), { recursive: true });
+        await fs.writeFile(resolved, args.content, "utf-8");
+        return { content: `成功写入 ${args.path} (${args.content.length} 字符)`, isError: false };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { content: `写入失败: ${message}`, isError: true };
+      }
     },
   };
 }

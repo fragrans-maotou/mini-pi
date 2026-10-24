@@ -19,10 +19,10 @@
 //     followUps = getFollowUpMessages?.()；没有 → break；有 → push 进 context，继续
 //   }
 //   emit agent_end
-import type { Context, Message } from "@mini-pi/ai";
+import type { Context, Message, AssistantMessage, ToolCall, ToolResultMessage } from "@mini-pi/ai";
 import type { AgentEventSink, AgentLoopConfig } from "./types.ts";
 import { toToolDefinitions, executeToolCall } from "./tools.ts";
-import { AssistantMessage, ToolCall } from "@mini-pi/ai";
+
 /**
  * TODO(step06): 运行 agent 循环。
  * @param prompts   这一轮新加入的消息（通常是一条 UserMessage）
@@ -55,6 +55,8 @@ export async function runAgentLoop(
       if (turns >= maxTurns) break outer;
       turns++;
 
+      await emit({ type: "turn_start" });
+
       // 1. 调模型：跟 complete 一样消费事件
       let assistant: AssistantMessage | undefined;
       for await (const ev of config.streamFn(config.model, { ...context, tools }, { signal: config.signal })) {
@@ -65,6 +67,7 @@ export async function runAgentLoop(
           assistant = ev.message;
         }
       }
+
       // 没有获取到内容就抛出异常
       if (!assistant) throw new Error("流结束了但没有 done/error")
       push(assistant);
@@ -75,25 +78,52 @@ export async function runAgentLoop(
         break outer;
       }
 
-      // 3. 输出结束，开始工具调用
-      const toolCalls = assistant.content.filter((c): c is ToolCall => c.type === "toolCall")
-      // 空 ②：没有 toolCalls 就跳出内层（break）
-      if (toolCalls.length === 0) break;
+      // 3. 收集并执行工具调用
+      const toolCalls = assistant.content.filter((c): c is ToolCall => c.type === "toolCall");
+      const toolResults: ToolResultMessage[] = [];
 
       // 4. 给每个 toolCall 派发 beforeToolCall + execute + afterToolCall
       for (const tc of toolCalls) {
-        const result = await executeToolCall(config.tools, tc, config.signal);
-        push(result);
-      }
-    }
-    // 空 ③：外层循环。调用 config.getFollowUpMessages?.()，
-    //       没拿到或者是空数组就 break；有的话逐条 push，然后继续
+        await emit({ type: "tool_execution_start", toolCall: tc });
 
+        let result: ToolResultMessage;
+        const before = await config.beforeToolCall?.(tc);
+        if (before?.block) {
+          result = {
+            role: "toolResult",
+            toolCallId: tc.id,
+            toolName: tc.name,
+            content: [{ type: "text", text: before.reason || "工具被拦截" }],
+            isError: true,
+            timestamp: Date.now(),
+          };
+        } else {
+          result = await executeToolCall(config.tools, tc, config.signal);
+        }
+
+        const after = await config.afterToolCall?.(tc, result);
+        if (after) {
+          result = after;
+        }
+
+        await emit({ type: "tool_execution_end", toolCall: tc, result });
+        push(result);
+        toolResults.push(result);
+      }
+
+      // 每轮结束发 turn_end（即便没有 toolCalls 也要发）
+      await emit({ type: "turn_end", message: assistant, toolResults });
+
+      // 没有 toolCalls 就跳出内层（模型给出了最终回复）
+      if (toolCalls.length === 0) break;
+    }
+    // 空 ③：外层循环。调用 config.getFollowUpMessages?.()
+    // 没拿到或者是空数组就 break；有的话逐条 push，然后继续
     const followUps = (await config.getFollowUpMessages?.()) ?? [];
     if (followUps.length === 0) break outer;
     for (const m of followUps) push(m);
   }
 
-  await emit({ type: "agent_end", messages: context.messages });
+  await emit({ type: "agent_end", messages: newMessages });
   return newMessages;
 }

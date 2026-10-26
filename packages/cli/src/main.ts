@@ -7,6 +7,7 @@ import { createInterface } from "node:readline/promises";
 import { confirmBash, createBashTool } from "./tools/bash.ts";
 import { createReadTool } from "./tools/read.ts";
 import { createWriteTool } from "./tools/write.ts";
+import { SessionManager } from "./session.ts";
 
 async function main() {
   const cfg = getTextModelConfig();
@@ -23,11 +24,27 @@ async function main() {
       }
     },
   });
+  // 1. 会话初始化（支持 --resume <file> 恢复历史对话）
+  const resumeIdx = process.argv.indexOf("--resume");
+  const resumeFile = resumeIdx !== -1 ? process.argv[resumeIdx + 1] : undefined;
+  const session = resumeFile
+    ? SessionManager.open(resumeFile)
+    : SessionManager.create(cwd);
+
+  if (resumeFile) {
+    for (const msg of session.buildMessages()) {
+      agent.messages.push(msg);
+    }
+    console.log(`已恢复历史会话，加载了 ${agent.messages.length} 条消息`);
+  }
+  console.log(`会话文件: ${session.file}`);
+
   agent.subscribe((e) => {
     if (e.type === "text_delta") process.stdout.write(e.delta);
     if (e.type === "tool_execution_start") console.log(`\n🔧 ${e.toolCall.name} ${JSON.stringify(e.toolCall.arguments)}`);
+    if (e.type === "message_end") session.appendMessage(e.message);
   });
-  // TODO(step09): 用 SessionManager 把每条 message_end 存下来；支持 --resume <file>
+
   // TODO(step10): 每次 prompt 前检查 shouldCompact，需要就压缩
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   console.log("mini-pi 已启动，输入 exit 退出");

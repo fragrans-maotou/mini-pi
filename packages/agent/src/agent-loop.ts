@@ -39,14 +39,18 @@ export async function runAgentLoop(
   emit: AgentEventSink = () => { },
 ): Promise<Message[]> {
   const newMessages: Message[] = [];
-  const push = (m: Message) => { context.messages.push(m); newMessages.push(m); }
+  const push = async (m: Message) => {
+    context.messages.push(m);
+    newMessages.push(m);
+    await emit({ type: "message_end", message: m });
+  }
   const maxTurns = config.maxTurns ?? 20
   const tools = toToolDefinitions(config.tools)
   let turns = 0
 
   await emit({ type: "agent_start" });
   for (const m of prompts) {
-    push(m);
+    await push(m);
   }
 
   outer: while (true) {
@@ -70,7 +74,7 @@ export async function runAgentLoop(
 
       // 没有获取到内容就抛出异常
       if (!assistant) throw new Error("流结束了但没有 done/error")
-      push(assistant);
+      await push(assistant);
 
       // 2. 出错就结束
       // 空 ①：stopReason 是 "error" 或 "aborted" 时，发 agent_end 并 return newMessages
@@ -107,7 +111,7 @@ export async function runAgentLoop(
         }
 
         await emit({ type: "tool_execution_end", toolCall: tc, result });
-        push(result);
+        await push(result);
         toolResults.push(result);
       }
 
@@ -121,7 +125,7 @@ export async function runAgentLoop(
     // 没拿到或者是空数组就 break；有的话逐条 push，然后继续
     const followUps = (await config.getFollowUpMessages?.()) ?? [];
     if (followUps.length === 0) break outer;
-    for (const m of followUps) push(m);
+    for (const m of followUps) await push(m);
   }
 
   await emit({ type: "agent_end", messages: newMessages });

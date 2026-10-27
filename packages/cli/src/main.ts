@@ -7,6 +7,7 @@ import { createInterface } from "node:readline/promises";
 import { confirmBash, createBashTool } from "./tools/bash.ts";
 import { createReadTool } from "./tools/read.ts";
 import { createWriteTool } from "./tools/write.ts";
+import { createImageTool } from "./tools/image.ts";
 import { SessionManager } from "./session.ts";
 import { shouldCompact, findCutPoint, summarize } from "./compaction.ts";
 
@@ -18,7 +19,7 @@ async function main() {
     model,
     streamFn: stream,
     systemPrompt: `你是一个编程助手，工作目录是 ${cwd}。需要时使用工具。`,
-    tools: [createReadTool(cwd), createWriteTool(cwd), createBashTool(cwd)],
+    tools: [createReadTool(cwd), createWriteTool(cwd), createBashTool(cwd), createImageTool(cwd)],
     beforeToolCall: async (call) => {
       if (call.name === "bash" && !(await confirmBash(String(call.arguments.command)))) {
         return { block: true, reason: "用户拒绝执行这条命令" };

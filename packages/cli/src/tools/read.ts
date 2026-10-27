@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 
 /**
+  * TODO(step08): 读文件。参数 { path, offset?, limit? }；输出带行号；太长要截断（比如 2000 行），并告诉模型“还有更多”
   * 读文件工具。
   * 特性：
   *  1. 支持 offset/limit 分页截取，防止超大文件（几万行）一次性打爆模型的 Context 窗口；

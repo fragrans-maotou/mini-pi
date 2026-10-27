@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs/promises";
 
 /**
+ * TODO(step08): 写文件（自动创建父目录）。安全：path 解析后必须在 cwd 里面，否则返回错误。
  * 写文件工具（自动创建父目录并覆盖写入内容）。
  * 安全关键：解析后的绝对路径必须严格限制在工作目录 cwd 内部，防止模型越权写敏感文件。
  */

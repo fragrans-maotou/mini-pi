@@ -1,3 +1,4 @@
+// 第 8 步（TODO）：bash 工具。对应 pi：packages/coding-agent/src/core/tools/bash.ts + core/bash-executor.ts
 import type { AgentTool, AgentToolResult } from "@mini-pi/agent";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
@@ -6,6 +7,7 @@ import { createInterface } from "node:readline/promises";
 const MAX_OUTPUT_LENGTH = 50000;
 
 /**
+ * TODO(step08): 执行 shell 命令（child_process.spawn("bash", ["-lc", command], { cwd })）。
  * bash 命令执行工具。
  * 核心机制：
  *  1. 派生登录式 bash shell 子进程，继承父进程环境变量；
@@ -130,6 +132,7 @@ export function createBashTool(cwd: string): AgentTool<{ command: string; timeou
 }
 
 /**
+ * TODO(step08): 在终端问用户 “要执行 xxx 吗？[y/N]”，返回是否同意。用 node:readline/promises。
  * 终端交互确认函数：
  * 用于第 7 步的 beforeToolCall 钩子。执行危险的 bash 命令前，先暂停向终端人类询问授权。
  */
